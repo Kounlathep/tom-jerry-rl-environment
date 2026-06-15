@@ -148,7 +148,8 @@ if start_button:
             break
 
 final_grid = render_grid_to_emoji(env)
-    grid_placeholder.markdown(generate_grid_html(final_grid), unsafe_allow_html=True)
+
+grid_placeholder.markdown(generate_grid_html(final_grid), unsafe_allow_html=True)
 
     if env.winner == "jerry":
         st.balloons()
