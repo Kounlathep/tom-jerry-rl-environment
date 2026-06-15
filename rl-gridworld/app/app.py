@@ -1,4 +1,3 @@
-
 import sys
 import os
 import time
@@ -16,28 +15,7 @@ from agents.jerry_agent    import JerryAgent
 from agents.tom_agent      import TomAgent
 
 st.set_page_config(page_title="Tom & Jerry RL", layout="wide")
-
-st.title("Tom & Jerry: Multi-Agent Reinforcement Learning")
-
-st.sidebar.header("⚙️ Setting")
-
-ai_skill = st.sidebar.selectbox(
-    "AI Checkpoint:",
-    options=[
-        "Episode 100",
-        "Episode 1000",
-        "Episode 10000",
-        "Episode 30000",
-        "Episode 50000"
-    ]
-)
-if "100" in ai_skill: ep_selected = 100
-elif "1000" in ai_skill: ep_selected = 1000
-elif "10000" in ai_skill: ep_selected = 10000
-elif "30000" in ai_skill: ep_selected = 30000
-else: ep_selected = 50000
-
-speed = st.sidebar.slider("Simulation Speed (seconds per step)", 0.05, 1.0, 0.2)
+st.title("Tom & Jerry RL")
 
 def load_trained_agents(ep):
     jerry = JerryAgent()
@@ -72,91 +50,116 @@ def render_grid_to_emoji(env):
 
     return grid_matrix
 
-col1, col2 = st.columns([2, 1])
+def generate_grid_html(grid_matrix):
+    html = """
+    <div style="
+        font-size: 36px;
+        line-height: 1.5;
+        letter-spacing: 8px;
+        text-align: center;
+        background-color: #1e1e1e;
+        padding: 25px;
+        border-radius: 10px;
+        max-width: 350px;
+        margin: 0 auto;
+    ">
+    """
+    for row in grid_matrix:
+        html += " ".join(row) + "<br>"
+    html += "</div>"
+    return html
 
-with col1:
-    st.subheader("GridWorld (5×5)")
 
+grid_placeholder = st.empty()
+status_placeholder = st.empty()
+
+empty_grid = [["⬜" for _ in range(5)] for _ in range(5)]
+grid_placeholder.markdown(generate_grid_html(empty_grid), unsafe_allow_html=True)
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+col_btn, col_chk, col_spd = st.columns([1, 1, 1])
+
+with col_chk:
+    ai_skill = st.selectbox(
+        "Checkpoint:",
+        options=[
+            "Episode 100",
+            "Episode 1000",
+            "Episode 10000",
+            "Episode 30000",
+            "Episode 50000"
+        ],
+        index=4
+    )
+    if "100" in ai_skill and "1000" not in ai_skill: ep_selected = 100
+    elif "1000" in ai_skill and "10000" not in ai_skill: ep_selected = 1000
+    elif "10000" in ai_skill: ep_selected = 10000
+    elif "30000" in ai_skill: ep_selected = 30000
+    else: ep_selected = 50000
+
+with col_spd:
+    speed_option = st.selectbox(
+        "Speed:",
+        options=["Slow", "Normal", "Fast"],
+        index=1
+    )
+    if speed_option == "Slow":
+        speed = 0.6
+    elif speed_option == "Normal":
+        speed = 0.3
+    else:
+        speed = 0.1
+
+with col_btn:
+    st.markdown("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True)
     start_button = st.button(
-        "Start Simulation",
+        "Start",
         type="primary",
         use_container_width=True
     )
 
-    grid_placeholder = st.empty()
-    status_placeholder = st.empty()
 
-    if start_button:
-        env = GridWorld()
-        jerry_agent, tom_agent = load_trained_agents(ep_selected)
 
-        jerry_state, tom_state = env.reset()
-        env.cheese_hp = 5
+if start_button:
+    env = GridWorld()
+    jerry_agent, tom_agent = load_trained_agents(ep_selected)
 
-        for step in range(1, 201):
+    jerry_state, tom_state = env.reset()
+    env.cheese_hp = 5
 
-            jerry_action = jerry_agent.choose_action(jerry_state)
-            tom_action = tom_agent.choose_action(tom_state)
+    for step in range(1, 201):
+        jerry_action = jerry_agent.choose_action(jerry_state)
+        tom_action = tom_agent.choose_action(tom_state)
 
-            jerry_state, tom_state, jr, tr, done = env.step(
-                jerry_action,
-                tom_action
-            )
+        jerry_state, tom_state, jr, tr, done = env.step(jerry_action, tom_action)
 
-            emoji_grid = render_grid_to_emoji(env)
+        emoji_grid = render_grid_to_emoji(env)
+        grid_html = generate_grid_html(emoji_grid)
+        grid_placeholder.markdown(grid_html, unsafe_allow_html=True)
+        
+        status_placeholder.info(
+            f"Step: {step} | Cheese HP: {env.cheese_hp}/5"
+        )
 
-            grid_html = """
-            <div style="
-                font-size: 32px;
-                line-height: 1.4;
-                letter-spacing: 5px;
-                text-align: center;
-                background-color: #1e1e1e;
-                padding: 20px;
-                border-radius: 10px;
-            ">
-            """
+        time.sleep(speed)
 
-            for row in emoji_grid:
-                grid_html += " ".join(row) + "<br>"
+        if done:
+            break
 
-            grid_html += "</div>"
-            grid_placeholder.markdown(grid_html, unsafe_allow_html=True)
-            status_placeholder.info(
-                f"Step: {step} | Cheese HP: {env.cheese_hp}/5"
-            )
+final_grid = render_grid_to_emoji(env)
+    grid_placeholder.markdown(generate_grid_html(final_grid), unsafe_allow_html=True)
 
-            time.sleep(speed)
-
-            if done:
-                break
-
-        if env.winner == "jerry":
-            st.balloons()
-            status_placeholder.success(
-                f"Jerry wins in {env.steps} steps"
-            )
-
-        elif env.winner == "tom":
-            status_placeholder.error(
-                f"Tom wins in {env.steps} steps"
-            )
-
-        else:
-            status_placeholder.warning(
-                f"Draw after {env.steps} steps"
-            )
-
-with col2:
-    st.subheader("Training Results")
-
-    graph_path = os.path.join(project_root, 'assets', 'graphs', 'win_rate_progression.png')
-
-    if os.path.exists(graph_path):
-        st.image(
-            graph_path,
-            caption="Win Rate Progression",
-            use_container_width=True
+    if env.winner == "jerry":
+        st.balloons()
+        status_placeholder.success(
+            f"Jerry wins the game in {env.steps} steps!"
+        )
+    elif env.winner == "tom":
+        status_placeholder.error(
+            f"Tom wins the game in {env.steps} steps!"
         )
     else:
-        st.info("Training graph not available")
+        status_placeholder.warning(
+            f"Match Draw after {env.steps} steps!"
+        )
