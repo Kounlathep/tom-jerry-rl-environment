@@ -158,7 +158,6 @@ if start_button:
     )
 
     if env.winner == "jerry":
-        st.balloons()
         status_placeholder.success(
             f"Jerry wins the game in {env.steps} steps!"
         )
