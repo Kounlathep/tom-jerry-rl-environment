@@ -97,7 +97,7 @@ with col_chk:
     ai_skill = st.selectbox(
         "Checkpoint:",
         options=[f"Episode {ep}" for ep in EPISODES],
-        index=4
+        index=0
     )
     ep_selected = int(ai_skill.split()[1])
 
